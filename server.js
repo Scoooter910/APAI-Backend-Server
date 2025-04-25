@@ -13,6 +13,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+console.log("✅ API key used:", process.env.OPENROUTER_API_KEY);
+
 app.post('/api/cite-topic', async (req, res) => {
   const { topic } = req.body;
 
