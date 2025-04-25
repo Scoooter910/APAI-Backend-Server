@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 dotenv.config();
 
@@ -24,7 +24,7 @@ app.post('/api/cite-topic', async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "You are an APA citation assistant. ONLY respond with pure JSON. Generate exactly 3 realistic scholarly citations based on the topic. Each citation must include: author, title, year, publisher. Return them inside a JSON array like [{...}, {...}, {...}]. No extra text."
+            content: "You are an APA citation assistant. ONLY respond with raw JSON. Generate exactly 3 realistic scholarly citations based on the topic. Format response as an array like: [{ author: '', title: '', year: '', publisher: '' }]"
           },
           {
             role: "user",
@@ -35,32 +35,27 @@ app.post('/api/cite-topic', async (req, res) => {
     });
 
     const data = await response.json();
-    console.log("FULL OpenRouter Response:", data);
 
     if (!data.choices || !data.choices.length) {
-      throw new Error('Invalid API response: ' + JSON.stringify(data));
+      console.error("Invalid AI response:", data);
+      return res.status(500).json({ error: "Invalid AI response" });
     }
 
-    const aiResponse = data.choices[0].message.content;
-    const jsonStart = aiResponse.indexOf('[');
-    const jsonEnd = aiResponse.lastIndexOf(']');
-    
+    const rawText = data.choices[0].message.content;
+    const jsonStart = rawText.indexOf('[');
+    const jsonEnd = rawText.lastIndexOf(']');
+
     if (jsonStart === -1 || jsonEnd === -1) {
-      throw new Error('AI response does not contain valid JSON array');
+      console.error("AI output not in JSON array format:", rawText);
+      return res.status(500).json({ error: "AI did not return a valid JSON array." });
     }
 
-    const jsonString = aiResponse.substring(jsonStart, jsonEnd + 1);
-    const citationsArray = JSON.parse(jsonString);
+    const jsonArray = JSON.parse(rawText.substring(jsonStart, jsonEnd + 1));
+    res.json(jsonArray);
 
-    if (!Array.isArray(citationsArray)) {
-      throw new Error('Parsed content is not an array');
-    }
-
-    res.json(citationsArray);
-
-  } catch (error) {
-    console.error("Error from OpenRouter or JSON parse:", error.message);
-    res.status(500).json({ error: "Failed to get citations from OpenRouter." });
+  } catch (err) {
+    console.error("Backend Error:", err);
+    res.status(500).json({ error: "Failed to generate citations from AI." });
   }
 });
 
