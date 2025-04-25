@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 dotenv.config();
 
@@ -11,6 +11,10 @@ app.use(express.json());
 
 app.post('/api/cite-topic', async (req, res) => {
   const { topic } = req.body;
+
+  if (!topic) {
+    return res.status(400).json({ error: 'No topic provided' });
+  }
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -36,28 +40,27 @@ app.post('/api/cite-topic', async (req, res) => {
 
     const data = await response.json();
 
-    console.log("FULL OpenRouter Response:", data); // Debug line
+    console.log("FULL OpenRouter Response:", JSON.stringify(data, null, 2)); // formatted log
 
     if (!data.choices || !data.choices.length) {
-      throw new Error('Invalid API response: ' + JSON.stringify(data));
+      throw new Error('No choices returned from OpenRouter.');
     }
 
-    const aiResponse = data.choices[0].message.content;
-    console.log("AI RAW MESSAGE CONTENT:", aiResponse);
+    const aiMessage = data.choices[0].message.content;
 
-    const jsonStart = aiResponse.indexOf('[');
-    const jsonEnd = aiResponse.lastIndexOf(']');
-    const jsonString = aiResponse.substring(jsonStart, jsonEnd + 1);
+    const jsonStart = aiMessage.indexOf('[');
+    const jsonEnd = aiMessage.lastIndexOf(']');
+    const jsonString = aiMessage.substring(jsonStart, jsonEnd + 1);
 
     const citationsArray = JSON.parse(jsonString);
 
-    res.json(citationsArray); // Now sending back an array!
-    
+    res.json(citationsArray);
+
   } catch (error) {
-    console.error("Error from OpenRouter or JSON parse:", error);
-    res.status(500).json({ error: "Failed to get citations from OpenRouter." });
+    console.error("🔥 Error from OpenRouter or JSON parse:", error);
+    res.status(500).json({ error: "Failed to generate citations. Please try again later." });
   }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
