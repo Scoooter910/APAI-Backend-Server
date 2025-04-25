@@ -12,10 +12,6 @@ app.use(express.json());
 app.post('/api/cite-topic', async (req, res) => {
   const { topic } = req.body;
 
-  if (!topic) {
-    return res.status(400).json({ error: 'No topic provided' });
-  }
-
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -39,28 +35,34 @@ app.post('/api/cite-topic', async (req, res) => {
     });
 
     const data = await response.json();
-
-    console.log("FULL OpenRouter Response:", JSON.stringify(data, null, 2)); // formatted log
+    console.log("FULL OpenRouter Response:", data);
 
     if (!data.choices || !data.choices.length) {
-      throw new Error('No choices returned from OpenRouter.');
+      throw new Error('Invalid API response: ' + JSON.stringify(data));
     }
 
-    const aiMessage = data.choices[0].message.content;
+    const aiResponse = data.choices[0].message.content;
+    const jsonStart = aiResponse.indexOf('[');
+    const jsonEnd = aiResponse.lastIndexOf(']');
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error('AI response does not contain valid JSON array');
+    }
 
-    const jsonStart = aiMessage.indexOf('[');
-    const jsonEnd = aiMessage.lastIndexOf(']');
-    const jsonString = aiMessage.substring(jsonStart, jsonEnd + 1);
-
+    const jsonString = aiResponse.substring(jsonStart, jsonEnd + 1);
     const citationsArray = JSON.parse(jsonString);
+
+    if (!Array.isArray(citationsArray)) {
+      throw new Error('Parsed content is not an array');
+    }
 
     res.json(citationsArray);
 
   } catch (error) {
-    console.error("🔥 Error from OpenRouter or JSON parse:", error);
-    res.status(500).json({ error: "Failed to generate citations. Please try again later." });
+    console.error("Error from OpenRouter or JSON parse:", error.message);
+    res.status(500).json({ error: "Failed to get citations from OpenRouter." });
   }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
