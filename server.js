@@ -1,10 +1,12 @@
+console.log("OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY);
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 dotenv.config();
-console.log("OpenRouter API Key Loaded?", !!process.env.OPENROUTER_API_KEY);
+
 
 
 const app = express();
